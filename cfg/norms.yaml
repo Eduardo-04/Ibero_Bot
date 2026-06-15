@@ -1,0 +1,68 @@
+limits:
+  hum_suelo:
+    bands:
+      - name: "Crítico (Seco)"
+        max: 20
+        emoji: "🔴"
+        lvl: "bad"
+      - name: "Bajo"
+        max: 40
+        emoji: "🟡"
+        lvl: "fair"
+      - name: "Óptimo"
+        max: 80
+        emoji: "🟢"
+        lvl: "good"
+      - name: "Saturado"
+        max: 100
+        emoji: "🔵"
+        lvl: "bad"
+
+  temp_ambiente:
+    bands:
+      - name: "Estrés por frío"
+        max: 15
+        emoji: "🔵"
+        lvl: "bad"
+      - name: "Óptimo"
+        max: 28
+        emoji: "🟢"
+        lvl: "good"
+      - name: "Estrés por calor"
+        max: 60
+        emoji: "🔴"
+        lvl: "bad"
+
+  hum_ambiente:
+    bands:
+      - name: "Muy Seco"
+        max: 30
+        emoji: "🟡"
+        lvl: "fair"
+      - name: "Óptimo"
+        max: 70
+        emoji: "🟢"
+        lvl: "good"
+      - name: "Riesgo de Hongos"
+        max: 100
+        emoji: "🔴"
+        lvl: "bad"
+
+  lux:
+    bands:
+      - name: "Baja Luz"
+        max: 200
+        emoji: "🔴"
+        lvl: "bad"
+      - name: "Sombra Parcial"
+        max: 2000
+        emoji: "🟡"
+        lvl: "fair"
+      - name: "Luz Óptima"
+        max: 20000
+        emoji: "🟢"
+        lvl: "good"
+      - name: "Luz Directa Intensa"
+        max: 100000
+        emoji: "☀️"
+        lvl: "good"

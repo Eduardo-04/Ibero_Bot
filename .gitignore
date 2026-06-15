@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtualenv
+venv/
+.venv/
+
+# Secrets
+.env
+
+# Logs
+*.log
+
+# Optional: local tests
+src/test_*.py
+
+
+
+# Private keys
+*.pem
+*.key
+
+# Data exports
+*.csv
+
+# Local device configuration
+cfg/devices.yaml
+
+# Private documentation
+README.private.md

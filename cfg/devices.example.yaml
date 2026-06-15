@@ -1,0 +1,7 @@
+devices:
+  huerto_1:
+    label: "Huerto Principal"
+    env_token: "SM_TOKEN_HUERTO_1"
+  huerto_2:
+    label: "Semillero"
+    env_token: "SM_TOKEN_HUERTO_2"
