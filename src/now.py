@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from typing import Optional
 
 from api import SmAPI
 from cfg import Cfg
@@ -16,10 +17,15 @@ TZ_NAME = os.getenv("TZ", "America/Mexico_City")
 
 
 def fmt(dt: datetime) -> str:
+    """Formatea una fecha a una cadena en el formato YYYY-MM-DD HH:MM:SS."""
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def avg_from_rows(rows: list[dict]) -> float | None:
+def avg_from_rows(rows: list[dict]) -> Optional[float]:
+    """
+    Calcula el promedio de la columna 'Data' de una lista de diccionarios.
+    Ignora valores que no se puedan convertir a flotante.
+    """
     vals = []
     for r in rows:
         try:
@@ -32,6 +38,10 @@ def avg_from_rows(rows: list[dict]) -> float | None:
 
 
 def main(device_key: str = "iniat", sensor_id: int = 9):
+    """
+    Función principal en modo CLI para obtener los datos de un sensor específico
+    de un equipo dado y mostrar por consola su estado y promedios normativos.
+    """
     dev = DevCfg("cfg/devices.yaml")
     token = dev.token(device_key)
     dev_label = dev.label(device_key)

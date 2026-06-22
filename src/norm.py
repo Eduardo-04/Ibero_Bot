@@ -1,30 +1,39 @@
 from dataclasses import dataclass
 from pathlib import Path
 import yaml
+from typing import Optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 @dataclass
 class Semaforo:
+    """Clase de datos que representa el estado normativo (semáforo) de un sensor."""
     lvl: str        # good | fair | bad | vbad | xvbad | na
-    emoji: str
-    name: str       # "Buena", "Aceptable", etc.
-    msg: str        # texto corto para mostrar
+    emoji: str      # Emoji representativo del estado (ej. 🟢, 🔴)
+    name: str       # Nombre legible (ej. "Buena", "Aceptable")
+    msg: str        # Mensaje descriptivo corto
 
 class Norm:
+    """
+    Clase para manejar las normativas y límites aceptables de las mediciones, 
+    cargadas desde un archivo de configuración (norms.yaml).
+    """
     def __init__(self, path: str = "cfg/norms.yaml"):
+        """Inicializa leyendo el archivo de normativas."""
         full = BASE_DIR / path
         with open(full, "r", encoding="utf-8") as f:
             self.raw = yaml.safe_load(f) or {}
         self.limits = self.raw.get("limits", {}) or {}
 
     def _bands(self, alias: str):
+        """Retorna las bandas (niveles de semáforo) configuradas para un sensor específico."""
         return (self.limits.get(alias) or {}).get("bands") or []
 
     def _target_unit(self, alias: str) -> str:
+        """Obtiene la unidad de medida en la que está expresada la norma para un sensor."""
         return ((self.limits.get(alias) or {}).get("unit") or "").strip().lower()
 
-    def _convert(self, alias: str, value: float, unit_in: str | None) -> float:
+    def _convert(self, alias: str, value: float, unit_in: Optional[str]) -> float:
         """
         Convierte value a la unidad esperada por la norma (si aplica).
         Hoy solo necesitamos NO2: ppb -> ppm.
@@ -42,11 +51,18 @@ class Norm:
         # PM suelen venir en ug/m3, no convertimos aquí
         return value
 
-    def check(self, alias: str, value: float | None, unit_in: str | None = None) -> Semaforo:
+    def check(self, alias: str, value: Optional[float], unit_in: Optional[str] = None) -> Semaforo:
         """
-        Evalúa el semáforo según cfg/norms.yaml (bandas).
-        value: concentración (promedio normativo)
-        unit_in: unidad de entrada (p.ej. 'ppb' para NO2). Para PM puedes dejar None.
+        Evalúa el valor de una medición contra las bandas normativas configuradas y
+        retorna un objeto Semaforo con el estado resultante.
+        
+        Args:
+            alias: El alias del sensor (ej. 'temp_ambiente').
+            value: El valor de la medición (o promedio).
+            unit_in: La unidad de entrada de la medición.
+        
+        Returns:
+            Semaforo correspondiente al nivel de la medición.
         """
         if value is None:
             return Semaforo("na", "⚪", "Sin dato", "Sin dato.")

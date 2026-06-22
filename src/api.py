@@ -2,7 +2,18 @@ import requests
 from requests.exceptions import Timeout, RequestException
 
 class SmAPI:
+    """
+    Clase para interactuar con la API de Smability y obtener datos de los sensores.
+    """
     def __init__(self, base_url: str, token: str, timeout: int = 30):
+        """
+        Inicializa la instancia de la API.
+        
+        Args:
+            base_url: URL base de la API.
+            token: Token de autenticación para la API.
+            timeout: Tiempo de espera máximo para las peticiones (en segundos).
+        """
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
@@ -14,10 +25,16 @@ class SmAPI:
             "Connection": "close",
         })
 
-    def get_data(self, sensor_id: int, dt_start: str, dt_end: str):
+    def get_data(self, sensor_id: str, dt_start: str, dt_end: str):
         """
-        dt_start/dt_end: 'YYYY-MM-DD HH:MM:SS'
-        returns: list[{'Data': 'xx', 'TimeStamp': 'YYYY-MM-DDTHH:MM:SS'}, ...]
+        Obtiene los datos históricos de un sensor en un rango de fechas específico.
+        
+        Args:
+            sensor_id: El ID del sensor a consultar.
+            dt_start/dt_end: Rango de fechas en formato 'YYYY-MM-DD HH:MM:SS'.
+            
+        Returns: 
+            Una lista de diccionarios con el formato [{'Data': 'xx', 'TimeStamp': 'YYYY-MM-DDTHH:MM:SS'}, ...]
         """
         url = f"{self.base_url}/GetData"
         params = {
@@ -50,7 +67,17 @@ class SmAPI:
             return []
 
 
-    def latest(self, sensor_id: int, dt_start: str, dt_end: str):
+    def latest(self, sensor_id: str, dt_start: str, dt_end: str):
+        """
+        Obtiene el registro más reciente de un sensor dentro de un rango de tiempo dado.
+        
+        Args:
+            sensor_id: El ID del sensor a consultar.
+            dt_start/dt_end: Rango de fechas en formato 'YYYY-MM-DD HH:MM:SS'.
+            
+        Returns:
+            Un diccionario con el dato más reciente o None si no hay datos.
+        """
         rows = self.get_data(sensor_id, dt_start, dt_end)
         if not rows:
             return None

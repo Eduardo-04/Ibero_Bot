@@ -4,9 +4,17 @@ import matplotlib.pyplot as plt
 
 def plot_png(rows: list[dict], title: str, unit: str = "") -> tuple[bytes, dict]:
     """
-    Devuelve:
-      - png bytes
-      - stats dict con min/max/avg y timestamps
+    Genera una gráfica lineal estilo cyberpunk a partir de los datos históricos del sensor.
+    
+    Args:
+        rows: Lista de diccionarios con datos del sensor (con 'Data' y 'TimeStamp').
+        title: Título de la gráfica.
+        unit: Unidad de medida para mostrar en el eje Y.
+        
+    Returns:
+        Una tupla con:
+        - Los bytes de la imagen PNG generada.
+        - Un diccionario con las estadísticas (min, max, avg, timestamps).
     """
 
     df = pd.DataFrame(rows)
@@ -43,6 +51,7 @@ def plot_png(rows: list[dict], title: str, unit: str = "") -> tuple[bytes, dict]
         ax.text(0.5, 0.5, "Sin datos en este rango",
                 ha="center", va="center", color=text_color)
     else:
+        # Prepara los datos (convirtiendo tipos)
         df["Data"] = pd.to_numeric(df["Data"], errors="coerce")
         df["TimeStamp"] = pd.to_datetime(df["TimeStamp"], errors="coerce")
         df = df.dropna(subset=["TimeStamp", "Data"]).sort_values("TimeStamp")
@@ -62,7 +71,7 @@ def plot_png(rows: list[dict], title: str, unit: str = "") -> tuple[bytes, dict]
             ax.set_xlabel("Tiempo")
             ax.set_ylabel(f"Valor {unit}".strip())
 
-            # Stats
+            # Cálculo de estadísticas
             vmin = float(df["Data"].min())
             vmax = float(df["Data"].max())
             vavg = float(df["Data"].mean())
@@ -79,7 +88,7 @@ def plot_png(rows: list[dict], title: str, unit: str = "") -> tuple[bytes, dict]
             stats["min_ts"] = tmin.strftime("%Y-%m-%d %H:%M:%S")
             stats["max_ts"] = tmax.strftime("%Y-%m-%d %H:%M:%S")
 
-            # Puntos neón
+            # Puntos neón para el mínimo y máximo
             ax.scatter([tmin], [vmin],
                        s=100, marker="o",
                        color=min_color,
@@ -94,7 +103,7 @@ def plot_png(rows: list[dict], title: str, unit: str = "") -> tuple[bytes, dict]
                        linewidths=0.6,
                        zorder=5)
 
-            # Etiquetas pequeñas
+            # Etiquetas pequeñas para min y max en la gráfica
             ax.annotate("min", (tmin, vmin),
                         textcoords="offset points",
                         xytext=(6, -12),
@@ -105,8 +114,10 @@ def plot_png(rows: list[dict], title: str, unit: str = "") -> tuple[bytes, dict]
                         xytext=(6, 8),
                         color=max_color)
 
+    # Formatea las fechas del eje X para que no se encimen
     fig.autofmt_xdate()
 
+    # Guarda la imagen en un buffer
     buf = BytesIO()
     fig.savefig(buf, format="png", dpi=180, bbox_inches="tight")
     plt.close(fig)

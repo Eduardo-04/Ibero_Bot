@@ -16,6 +16,7 @@ BTN_CSV_ALL = "📥 CSV (todos)"
 BTN_BACK = "⬅️ Atrás"
 
 def kb_devices():
+    """Genera el teclado para seleccionar un área de cultivo (Invernadero o Cama)."""
     return ReplyKeyboardMarkup(
         [[BTN_DEVICE_1], [BTN_DEVICE_2]],
         resize_keyboard=True,
@@ -23,6 +24,7 @@ def kb_devices():
     )
 
 def kb_sensors():
+    """Genera el teclado para elegir el sensor a consultar."""
     return ReplyKeyboardMarkup(
         [
             [BTN_TEMP, BTN_HUM],
@@ -35,6 +37,7 @@ def kb_sensors():
     )
 
 def kb_actions():
+    """Genera el teclado con las acciones a realizar (Valor actual o Gráfica)."""
     return ReplyKeyboardMarkup(
         [[BTN_NOW], [BTN_PLOT], [BTN_HOME]],
         resize_keyboard=True,
@@ -57,6 +60,7 @@ RANGE_MAP = {
 }
 
 def kb_ranges():
+    """Genera el teclado para elegir el rango de tiempo de una gráfica o acción."""
     return ReplyKeyboardMarkup(
         [
             [BTN_R_8H, BTN_R_24H],

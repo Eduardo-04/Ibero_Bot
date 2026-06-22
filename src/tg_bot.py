@@ -1,5 +1,9 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+from typing import Optional
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -19,13 +23,14 @@ from csvx import build_full_csv
 
 
 
-load_dotenv()
+load_dotenv(BASE_DIR / ".env")
 
 TG_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BASE_URL = os.getenv("SMABILITY_BASE_URL")
 TZ_NAME = os.getenv("TZ", "America/Mexico_City")
 
 def kb_main():
+    """Retorna el teclado principal (InlineKeyboardMarkup) con las acciones principales del bot."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📍 Ahora", callback_data="act:now")],
         [InlineKeyboardButton("📈 Gráfica", callback_data="act:plot")],
@@ -44,7 +49,7 @@ def kb_sensors(cfg: Cfg, action: str):
     rows.append([InlineKeyboardButton("⬅️ Menú", callback_data="act:menu")])
     return InlineKeyboardMarkup(rows)
 
-def kb_ranges(action: str, sid: int):
+def kb_ranges(action: str, sid: str):
     # rangos comunes
     opts = ["8h", "24h", "7 dias", "1 mes"]
     rows = []
@@ -57,11 +62,13 @@ def kb_ranges(action: str, sid: int):
 def fmt(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-def avg_from_rows(rows: list[dict]) -> float | None:
+def avg_from_rows(rows: list[dict]) -> Optional[float]:
     vals = []
     for r in rows:
         try:
-            vals.append(float(r.get("Data")))
+            data = r.get("Data")
+            if data is not None:
+                vals.append(float(data))
         except Exception:
             continue
     if not vals:
@@ -70,6 +77,8 @@ def avg_from_rows(rows: list[dict]) -> float | None:
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manejador para el comando /start. Inicializa el estado del bot para el usuario e inicia la interacción."""
+    if not update.effective_chat or not update.message: return
     # inicializa estado por chat si no existe
     chat_id = update.effective_chat.id
     st_map = context.application.bot_data.setdefault("state", {})
@@ -86,6 +95,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manejador de mensajes de texto (interacción de los menús normales y botones)."""
+    if not update.effective_chat or not update.message: return
     chat_id = update.effective_chat.id
     text = (update.message.text or "").strip()
 
@@ -137,7 +148,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token = dev.token(st.device_key)
         dev_label = dev.label(st.device_key)
 
-        api = SmAPI(BASE_URL, token)
+        api = SmAPI(BASE_URL or "", token)
         cfg: Cfg = context.application.bot_data["cfg"]
         norm: Norm = context.application.bot_data["norm"]
 
@@ -168,7 +179,9 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         vals = []
         for r in rows_norm:
             try:
-                vals.append(float(r.get("Data")))
+                data = r.get("Data")
+                if data is not None:
+                    vals.append(float(data))
             except Exception:
                 continue
         avg_norm = (sum(vals) / len(vals)) if vals else None
@@ -218,7 +231,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         dev: DevCfg = context.application.bot_data["dev"]
         token = dev.token(st.device_key)
-        api = SmAPI(BASE_URL, token)
+        api = SmAPI(BASE_URL or "", token)
 
         start_dt, end_dt = parse_range(rng, TZ_NAME)
         rows = api.get_data(st.sensor_id, fmt_api(start_dt), fmt_api(end_dt))
@@ -262,7 +275,9 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         vals = []
         for r in rows_norm:
             try:
-                vals.append(float(r.get("Data")))
+                data = r.get("Data")
+                if data is not None:
+                    vals.append(float(data))
             except Exception:
                 continue
         avg_norm = (sum(vals) / len(vals)) if vals else None
@@ -305,7 +320,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         dev: DevCfg = context.application.bot_data["dev"]
         token = dev.token(st.device_key)
-        api = SmAPI(BASE_URL, token)
+        api = SmAPI(BASE_URL or "", token)
 
         start_dt, end_dt = parse_range(rng, TZ_NAME)
 
@@ -347,6 +362,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     
 async def cmd_sensores(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message: return
     cfg: Cfg = context.application.bot_data["cfg"]
 
     # cfg.sensors puede traer keys como int o str; normalizamos
@@ -366,6 +382,7 @@ async def cmd_sensores(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_ahora(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message: return
     if not context.args:
         await update.message.reply_text("Uso: /ahora <idSensor>\nEjemplo: /ahora 9")
         return
@@ -408,7 +425,9 @@ async def cmd_ahora(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manejador de eventos en línea (callbacks), como la selección de botones interactivos debajo de los mensajes."""
     q = update.callback_query
+    if not q: return
     await q.answer()
 
     cfg: Cfg = context.application.bot_data["cfg"]
@@ -498,6 +517,7 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
+    """Función principal que arranca el bot y define los manejadores (handlers)."""
     if not TG_TOKEN or TG_TOKEN == "TO_BE_DEFINED":
         raise RuntimeError("Falta TELEGRAM_TOKEN real en .env")
 

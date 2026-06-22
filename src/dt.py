@@ -3,19 +3,27 @@ from dateutil.relativedelta import relativedelta
 from dateutil import tz
 
 def now(tz_name: str) -> datetime:
+    """Retorna la fecha y hora actual en la zona horaria especificada."""
     return datetime.now(tz.gettz(tz_name))
 
 def fmt_api(dt: datetime) -> str:
+    """Formatea una fecha (datetime) en el formato que espera la API de Smability ('YYYY-MM-DD HH:MM:SS')."""
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 def parse_range(rng: str, tz_name: str) -> tuple[datetime, datetime]:
     """
-    Acepta:
-      - "10m" (minutos), "1h", "1d"
-      - "1m", "3m", "6m" (meses)  <-- OJO: aquí m=mes
-      - "1mo", "3mo", "6mo" (meses explícito)
-      - "1y"
-      - "YYYY-MM-DD:YYYY-MM-DD"
+    Convierte una cadena que especifica un rango de tiempo en una tupla de dos objetos datetime 
+    (inicio y fin) en la zona horaria proporcionada.
+    
+    Acepta formatos como:
+      - "10m" (minutos), "1h" (horas), "1d" (días)
+      - "1m", "3m", "6m" (meses, abreviatura corta)
+      - "1mo", "3mo", "6mo" (meses, explícito)
+      - "1y" (1 año)
+      - "YYYY-MM-DD:YYYY-MM-DD" (Rango de fechas manual explícito)
+      
+    Returns:
+        (datetime_start, datetime_end)
     """
     rng = (rng or "").strip()
     end = now(tz_name)
@@ -63,5 +71,3 @@ def parse_range(rng: str, tz_name: str) -> tuple[datetime, datetime]:
 
     # default: 10 minutos
     return end - relativedelta(minutes=10), end
-
-
