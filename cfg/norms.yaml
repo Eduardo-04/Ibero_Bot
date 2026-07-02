@@ -1,22 +1,18 @@
 limits:
-  hum_suelo:
+  presion_atm:
     bands:
-      - name: "Crítico (Seco)"
-        max: 20
-        emoji: "🔴"
-        lvl: "bad"
-      - name: "Bajo"
-        max: 40
-        emoji: "🟡"
+      - name: "Baja Presión"
+        max: 1000
+        emoji: "⛈️"
         lvl: "fair"
-      - name: "Óptimo"
-        max: 80
-        emoji: "🟢"
+      - name: "Presión Normal"
+        max: 1025
+        emoji: "🌤️"
         lvl: "good"
-      - name: "Saturado"
-        max: 100
-        emoji: "🔵"
-        lvl: "bad"
+      - name: "Alta Presión"
+        max: 1100
+        emoji: "☀️"
+        lvl: "good"
 
   temp_ambiente:
     bands:
@@ -48,21 +44,17 @@ limits:
         emoji: "🔴"
         lvl: "bad"
 
-  lux:
+  resistencia_gas:
     bands:
-      - name: "Baja Luz"
-        max: 200
+      - name: "Calidad de Aire Mala"
+        max: 10000
         emoji: "🔴"
         lvl: "bad"
-      - name: "Sombra Parcial"
-        max: 2000
+      - name: "Calidad de Aire Regular"
+        max: 50000
         emoji: "🟡"
         lvl: "fair"
-      - name: "Luz Óptima"
-        max: 20000
+      - name: "Calidad de Aire Buena"
+        max: 500000
         emoji: "🟢"
-        lvl: "good"
-      - name: "Luz Directa Intensa"
-        max: 100000
-        emoji: "☀️"
         lvl: "good"

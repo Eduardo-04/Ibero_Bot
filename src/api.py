@@ -27,23 +27,24 @@ class LocalESP32API:
 
     def get_current_data(self, sensor_id: str = None):
         """
-        Obtiene la lectura instantánea scrapeando el HTML del ESP32 en la raíz (/).
+        Obtiene la lectura instantánea del ESP32 a través del endpoint JSON en el puerto 81.
         Retorna el formato simulado esperado: {'Data': valor, 'TimeStamp': 'YYYY-MM-DD HH:MM:SS'}
         """
-        url = f"{self.base_url}/"
+        url = f"{self.base_url}:81/sensor"
         try:
             r = self.s.get(url, timeout=self.timeout)
             r.raise_for_status()
-            html = r.text
+            data = r.json()
             
-            val = 0
-            if sensor_id == "hum_suelo" or not sensor_id:
-                import re
-                match = re.search(r"<div class='numero'>(\d+)%</div>", html)
-                if match:
-                    val = int(match.group(1))
-                else:
-                    print("⚠️ No se encontró la humedad en el HTML.")
+            val = None
+            if sensor_id == "temp_ambiente":
+                val = data.get("temperature_c")
+            elif sensor_id == "hum_ambiente":
+                val = data.get("humidity_percent")
+            elif sensor_id == "presion_atm":
+                val = data.get("pressure_hpa")
+            elif sensor_id == "resistencia_gas":
+                val = data.get("gas_resistance_ohms")
             
             ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
@@ -52,7 +53,21 @@ class LocalESP32API:
                 "TimeStamp": ts
             }
         except Exception as e:
-            print(f"⚠️ ESP32 error HTTP (current): {e}")
+            print(f"[!] ESP32 error HTTP (current): {e}")
+            return None
+
+    def get_camera_capture(self):
+        """
+        Obtiene la imagen de la cámara del ESP32 (JPEG) a través del puerto 80.
+        Retorna los bytes de la imagen.
+        """
+        url = f"{self.base_url}/capture"
+        try:
+            r = self.s.get(url, timeout=self.timeout)
+            r.raise_for_status()
+            return r.content
+        except Exception as e:
+            print(f"[!] ESP32 error HTTP (camera): {e}")
             return None
 
     def get_history_data(self, sensor_id: str = None, dt_start: str = None, dt_end: str = None):

@@ -7,8 +7,9 @@ BTN_HOME = "🏠 Inicio"
 
 BTN_TEMP = "🌡️ Temperatura"
 BTN_HUM = "💧 Humedad"
-BTN_SUELO = "🌱 Hum. Suelo"
-BTN_LUX = "☀️ Luz"
+BTN_PRESION = "🌤️ Presión"
+BTN_GAS = "💨 Gas"
+BTN_CAMARA = "📷 Cámara"
 
 BTN_NOW  = "📍 Ahora"
 BTN_PLOT = "📈 Gráfica"
@@ -28,7 +29,8 @@ def kb_sensors():
     return ReplyKeyboardMarkup(
         [
             [BTN_TEMP, BTN_HUM],
-            [BTN_SUELO, BTN_LUX],
+            [BTN_PRESION, BTN_GAS],
+            [BTN_CAMARA],
             [BTN_CSV_ALL],
             [BTN_HOME]
         ],

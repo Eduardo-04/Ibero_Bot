@@ -41,7 +41,7 @@ def kb_main():
 def kb_sensors(cfg: Cfg, action: str):
     # action: now | plot | csv
     # mostramos solo sensores "útiles" (puedes ajustar)
-    order = ["temp_ambiente", "hum_ambiente", "hum_suelo", "lux"]
+    order = ["temp_ambiente", "hum_ambiente", "presion_atm", "resistencia_gas"]
     rows = []
     for sid in order:
         label = cfg.label(sid)
@@ -129,10 +129,25 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 2) Selección de sensor (solo si ya hay equipo)
-    if st.device_key and text in {menus.BTN_TEMP, menus.BTN_HUM, menus.BTN_SUELO, menus.BTN_LUX}:
-        st.sensor_id = {menus.BTN_TEMP: "temp_ambiente", menus.BTN_HUM: "hum_ambiente", menus.BTN_SUELO: "hum_suelo", menus.BTN_LUX: "lux"}[text]
+    if st.device_key and text in {menus.BTN_TEMP, menus.BTN_HUM, menus.BTN_PRESION, menus.BTN_GAS}:
+        st.sensor_id = {menus.BTN_TEMP: "temp_ambiente", menus.BTN_HUM: "hum_ambiente", menus.BTN_PRESION: "presion_atm", menus.BTN_GAS: "resistencia_gas"}[text]
         st.mode = None
         await update.message.reply_text("Elige acción:", reply_markup=menus.kb_actions())
+        return
+
+    # 2.5) Acción: Cámara
+    if st.device_key and text == menus.BTN_CAMARA:
+        st.sensor_id = None
+        dev: DevCfg = context.application.bot_data["dev"]
+        ip_addr = dev.ip(st.device_key)
+        
+        msg = (
+            f"📷 Transmisión en Vivo\n\n"
+            f"Para ver el video en tiempo real de la cámara y los datos completos, haz clic en el siguiente enlace:\n"
+            f"👉 http://{ip_addr}/\n\n"
+            f"*(Asegúrate de estar conectado a la misma red WiFi)*"
+        )
+        await update.message.reply_text(msg, reply_markup=menus.kb_sensors())
         return
 
     # 3) Acción: Ahora (solo si ya hay equipo y sensor)
