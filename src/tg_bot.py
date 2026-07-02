@@ -13,7 +13,7 @@ import menus
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from api import SmAPI
+from api import LocalESP32API
 from cfg import Cfg
 from norm import Norm
 from dt import parse_range, fmt_api
@@ -51,7 +51,7 @@ def kb_sensors(cfg: Cfg, action: str):
 
 def kb_ranges(action: str, sid: str):
     # rangos comunes
-    opts = ["8h", "24h", "7 dias", "1 mes"]
+    opts = ["8h", "24h", "7d", "1m"]
     rows = []
     for r in opts:
         rows.append([InlineKeyboardButton(r, callback_data=f"run:{action}:{sid}:{r}")])
@@ -145,10 +145,10 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         dev: DevCfg = context.application.bot_data["dev"]
-        token = dev.token(st.device_key)
         dev_label = dev.label(st.device_key)
+        ip_addr = dev.ip(st.device_key)
 
-        api = SmAPI(BASE_URL or "", token)
+        api = LocalESP32API(ip_addr)
         cfg: Cfg = context.application.bot_data["cfg"]
         norm: Norm = context.application.bot_data["norm"]
 
@@ -157,9 +157,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         alias = cfg.alias(st.sensor_id)
 
         # 1) Último valor (últimos 10 minutos)
-        end = datetime.now()
-        start_last = end - relativedelta(minutes=10)
-        last = api.latest(st.sensor_id, fmt(start_last), fmt(end))
+        last = api.get_current_data(st.sensor_id)
 
         if not last:
             await update.message.reply_text(f"[{dev_label}] {label}: sin datos recientes.", reply_markup=menus.kb_actions())
@@ -173,7 +171,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         unit_in_for_norm = None
 
         start_norm, end_norm = parse_range(rng_norm, TZ_NAME)
-        rows_norm = api.get_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
+        rows_norm = api.get_history_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
 
         # promedio simple
         vals = []
@@ -207,15 +205,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 4) Grafica
     if text == menus.BTN_PLOT:
-        if not st.device_key:
-            await update.message.reply_text("Primero elige el equipo.", reply_markup=menus.kb_devices())
-            return
-        if not st.sensor_id:
-            await update.message.reply_text("Primero elige el sensor.", reply_markup=menus.kb_sensors())
-            return
-
-        st.mode = "plot"
-        await update.message.reply_text("Elige rango:", reply_markup=menus.kb_ranges())
+        await update.message.reply_text("⚠️ El código actual en el ESP32 no guarda historial, por lo que las gráficas no están disponibles en este momento.", reply_markup=menus.kb_actions())
         return
     
     # 5) Rangos de graficas
@@ -230,11 +220,11 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rng = menus.RANGE_MAP[text]
 
         dev: DevCfg = context.application.bot_data["dev"]
-        token = dev.token(st.device_key)
-        api = SmAPI(BASE_URL or "", token)
+        ip_addr = dev.ip(st.device_key)
+        api = LocalESP32API(ip_addr)
 
         start_dt, end_dt = parse_range(rng, TZ_NAME)
-        rows = api.get_data(st.sensor_id, fmt_api(start_dt), fmt_api(end_dt))
+        rows = api.get_history_data(st.sensor_id, fmt_api(start_dt), fmt_api(end_dt))
         
         # === Promedio normativo para semáforo ===
         alias = cfg.alias(st.sensor_id)
@@ -246,7 +236,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         end_norm = datetime.now()
         start_norm = end_norm - win
 
-        rows_norm = api.get_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
+        rows_norm = api.get_history_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
         avg_norm = avg_from_rows(rows_norm)
 
         sem = norm.check(alias, avg_norm, unit_in=unit_in_for_norm)
@@ -269,7 +259,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         end_norm = datetime.now()
         start_norm = end_norm - win
 
-        rows_norm = api.get_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
+        rows_norm = api.get_history_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
 
         # promedio simple (datos ~cada minuto)
         vals = []
@@ -310,46 +300,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 6) CSV
     if text == menus.BTN_CSV_ALL:
-        if not st.device_key:
-            await update.message.reply_text("Primero elige el equipo.", reply_markup=menus.kb_devices())
-            return
-
-        await update.message.reply_text("Generando CSV completo (1 año)...")
-
-        rng = "1y"
-
-        dev: DevCfg = context.application.bot_data["dev"]
-        token = dev.token(st.device_key)
-        api = SmAPI(BASE_URL or "", token)
-
-        start_dt, end_dt = parse_range(rng, TZ_NAME)
-
-        # Sensores incluidos en CSV completo
-        sensor_ids = ["temp_ambiente", "hum_ambiente", "hum_suelo", "lux"]
-
-        sensor_data = {}
-
-        for sid in sensor_ids:
-            rows = api.get_data(sid, fmt_api(start_dt), fmt_api(end_dt))
-            sensor_data[sid] = rows
-
-        # Construir labels y units
-        labels = {sid: cfg.label(sid) for sid in sensor_ids}
-        units = {sid: cfg.unit(sid) for sid in sensor_ids}
-
-        csv_bytes = build_full_csv(sensor_data, labels, units)
-
-        dev_label = dev.label(st.device_key)
-        filename = f"{st.device_key}_todos_1y.csv"
-        caption = f"[{dev_label}] Todos los sensores (1 año)"
-
-        await update.message.reply_document(
-            document=csv_bytes,
-            filename=filename,
-            caption=caption,
-            reply_markup=menus.kb_sensors()
-        )
-
+        await update.message.reply_text("⚠️ El código actual en el ESP32 no guarda historial, por lo que las exportaciones CSV no están disponibles en este momento.", reply_markup=menus.kb_sensors())
         return
 
 
@@ -389,14 +340,13 @@ async def cmd_ahora(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     sid = context.args[0]
 
-    api: SmAPI = context.application.bot_data["api"]
+    dev: DevCfg = context.application.bot_data["dev"]
+    ip_addr = dev.ip("huerto_1") # Default a huerto 1
+    api = LocalESP32API(ip_addr)
     cfg: Cfg = context.application.bot_data["cfg"]
     norm: Norm = context.application.bot_data["norm"]
 
-    # últimos 10 minutos
-    start_dt, end_dt = parse_range("10m", TZ_NAME)
-
-    last = api.latest(sid, fmt_api(start_dt), fmt_api(end_dt))
+    last = api.get_current_data(sid)
 
     label = cfg.label(sid)
     unit = cfg.unit(sid)
@@ -431,7 +381,7 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
 
     cfg: Cfg = context.application.bot_data["cfg"]
-    api: SmAPI = context.application.bot_data["api"]
+    # Nota: la API ya no se inicializa globalmente ya que depende del dispositivo elegido.
     norm: Norm = context.application.bot_data["norm"]
 
     data = q.data or ""
@@ -459,11 +409,11 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "act:plot":
-        await q.edit_message_text("Elige sensor para gráfica:", reply_markup=kb_sensors(cfg, "plot"))
+        await q.answer("⚠️ Gráficas no disponibles con la versión actual del ESP32.", show_alert=True)
         return
 
     if data == "act:csv":
-        await q.edit_message_text("Elige sensor para CSV:", reply_markup=kb_sensors(cfg, "csv"))
+        await q.answer("⚠️ CSV no disponible con la versión actual del ESP32.", show_alert=True)
         return
 
     # selección de sensor
@@ -471,8 +421,12 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _, action, sid = data.split(":")
         if action == "now":
             # ejecuta "ahora" directo (10m)
-            start_dt, end_dt = parse_range("10m", TZ_NAME)
-            last = api.latest(sid, fmt_api(start_dt), fmt_api(end_dt))
+            dev: DevCfg = context.application.bot_data["dev"]
+            st_map = context.application.bot_data.setdefault("state", {})
+            st = st_map.get(q.message.chat_id) or UIState()
+            ip_addr = dev.ip(st.device_key) if st.device_key else "127.0.0.1"
+            api = LocalESP32API(ip_addr)
+            last = api.get_current_data(sid)
 
             label = cfg.label(sid)
             unit = cfg.unit(sid)
@@ -500,17 +454,20 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # plot/csv requieren rango
+        if action in ("plot", "csv"):
+            await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
+            return
+            
         await q.edit_message_text("Elige rango:", reply_markup=kb_ranges(action, sid))
         return
 
-    # ejecución con rango (por ahora solo “navega”; en bloque siguiente implementamos plot/csv)
+    # ejecución con rango
     if data.startswith("run:"):
         _, action, sid, rng = data.split(":")
-        await q.edit_message_text(
-            f"Listo: {action} sensor {sid} rango {rng}\n(Siguiente bloque lo implementa)",
-            reply_markup=kb_main()
-        )
-        return
+        
+        if action in ("plot", "csv"):
+            await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
+            return
 
     # fallback
     await q.edit_message_text("Opción no reconocida.", reply_markup=kb_main())

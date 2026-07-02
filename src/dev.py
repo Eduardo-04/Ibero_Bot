@@ -25,16 +25,12 @@ class DevCfg:
         d = self.devices.get(key, {}) or {}
         return d.get("label", key)
 
-    def token(self, key: str) -> str:
+    def ip(self, key: str) -> str:
         """
-        Obtiene el token de acceso de un equipo. Lee el nombre de la variable de
-        entorno desde la configuración y busca el valor en el entorno (.env).
+        Obtiene la dirección IP de un equipo en la red local.
         """
         d = self.devices.get(key, {}) or {}
-        env_name = d.get("env_token")
-        if not env_name:
-            raise RuntimeError(f"Falta env_token para device '{key}' en devices.yaml")
-        val = os.getenv(env_name)
-        if not val:
-            raise RuntimeError(f"Falta variable de entorno {env_name} en .env")
-        return val
+        ip_addr = d.get("ip_address")
+        if not ip_addr:
+            raise RuntimeError(f"Falta ip_address para device '{key}' en devices.yaml")
+        return ip_addr
