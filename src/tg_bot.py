@@ -45,10 +45,13 @@ def kb_main():
         [InlineKeyboardButton("📡 Sensores", callback_data="act:sensors")],
     ])
 
-def kb_sensors(cfg: Cfg, action: str):
+def kb_sensors(cfg: Cfg, action: str, device_key: str = None):
     # action: now | plot | csv
     # mostramos solo sensores "útiles" (puedes ajustar)
-    order = ["temp_ambiente", "hum_ambiente", "presion_atm", "resistencia_gas", "hum_suelo"]
+    order = ["temp_ambiente", "hum_ambiente", "presion_atm", "resistencia_gas"]
+    if device_key != "huerto_1":
+        order.append("hum_suelo")
+        
     rows = []
     for sid in order:
         label = cfg.label(sid)
@@ -181,12 +184,12 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 3) Acción: Ahora (solo si ya hay equipo y sensor)
-    if text == menus.BTN_NOW:
+    if text in {menus.BTN_NOW, menus.BTN_PLOT}:
         if not st.device_key:
             await update.message.reply_text("Primero elige el área de cultivo.", reply_markup=menus.kb_devices())
             return
         if not st.sensor_id:
-            await update.message.reply_text("Primero elige el sensor.", reply_markup=menus.kb_sensors())
+            await update.message.reply_text("Primero elige el sensor.", reply_markup=menus.kb_sensors(st.device_key))
             return
 
         dev: DevCfg = context.application.bot_data["dev"]
@@ -376,7 +379,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # fallback: si el usuario escribe cualquier otra cosa
     await update.message.reply_text(
         "Usa los botones 🙂",
-        reply_markup=menus.kb_devices() if not st.device_key else (menus.kb_sensors() if not st.sensor_id else menus.kb_actions())
+        reply_markup=menus.kb_devices() if not st.device_key else (menus.kb_sensors(st.device_key) if not st.sensor_id else menus.kb_actions())
     )
 
     
