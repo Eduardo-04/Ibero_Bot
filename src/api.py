@@ -175,8 +175,11 @@ def get_api(dev_cfg, device_key: str):
     """
     Retorna la instancia correcta de API (Local o Cloud) según la configuración.
     """
+    import os
     d = dev_cfg.config(device_key)
     if "cloud_url" in d:
-        return CloudAPI(d["cloud_url"])
+        # Usa la variable de entorno si existe (para evitar NAT hairpin en AWS), si no usa la de devices.yaml
+        url = os.getenv("URL_API_ULTIMO") or d["cloud_url"]
+        return CloudAPI(url)
     else:
         return LocalESP32API(d.get("ip_address"))
