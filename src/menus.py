@@ -10,6 +10,7 @@ BTN_HUM = "💧 Humedad"
 BTN_PRESION = "🌤️ Presión"
 BTN_GAS = "💨 Gas"
 BTN_CAMARA = "📷 Cámara"
+BTN_HUM_SUELO = "🌱 Humedad Suelo"
 
 BTN_NOW  = "📍 Ahora"
 BTN_PLOT = "📈 Gráfica"
@@ -29,10 +30,10 @@ def kb_sensors():
     return ReplyKeyboardMarkup(
         [
             [BTN_TEMP, BTN_HUM],
-            [BTN_PRESION, BTN_GAS],
-            [BTN_CAMARA],
+            [BTN_HUM_SUELO, BTN_PRESION],
+            [BTN_GAS, BTN_CAMARA],
             [BTN_CSV_ALL],
-            [BTN_HOME]
+            [BTN_BACK, BTN_HOME]
         ],
         resize_keyboard=True,
         one_time_keyboard=False
@@ -41,7 +42,7 @@ def kb_sensors():
 def kb_actions():
     """Genera el teclado con las acciones a realizar (Valor actual o Gráfica)."""
     return ReplyKeyboardMarkup(
-        [[BTN_NOW], [BTN_PLOT], [BTN_HOME]],
+        [[BTN_NOW], [BTN_PLOT], [BTN_BACK, BTN_HOME]],
         resize_keyboard=True,
         one_time_keyboard=False
     )
@@ -67,7 +68,7 @@ def kb_ranges():
         [
             [BTN_R_8H, BTN_R_24H],
             [BTN_R_7D, BTN_R_1M],
-            [BTN_HOME],
+            [BTN_BACK, BTN_HOME],
         ],
         resize_keyboard=True,
         one_time_keyboard=False

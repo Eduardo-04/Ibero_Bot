@@ -1,6 +1,13 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import pandas as pd
+import requests
+import matplotlib.pyplot as plt
+
+# --- Integraciones locales para despliegue en AWS ---
+CSV_HUERTO_PATH = os.getenv("CSV_HUERTO_PATH")
+URL_API_ULTIMO = os.getenv("URL_API_ULTIMO")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 from typing import Optional
@@ -13,7 +20,7 @@ import menus
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from api import LocalESP32API
+from api import LocalESP32API, get_api
 from cfg import Cfg
 from norm import Norm
 from dt import parse_range, fmt_api
@@ -41,7 +48,7 @@ def kb_main():
 def kb_sensors(cfg: Cfg, action: str):
     # action: now | plot | csv
     # mostramos solo sensores "útiles" (puedes ajustar)
-    order = ["temp_ambiente", "hum_ambiente", "presion_atm", "resistencia_gas"]
+    order = ["temp_ambiente", "hum_ambiente", "presion_atm", "resistencia_gas", "hum_suelo"]
     rows = []
     for sid in order:
         label = cfg.label(sid)
@@ -125,12 +132,28 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == menus.BTN_HOME:
         st.device_key = None
         st.sensor_id = None
+        st.mode = None
         await update.message.reply_text("Selecciona el área de cultivo:", reply_markup=menus.kb_devices())
         return
 
+    # Back (regresa al menú anterior)
+    if text == menus.BTN_BACK:
+        if st.mode in ("plot", "csv"):
+            st.mode = None
+            await update.message.reply_text("Elige acción:", reply_markup=menus.kb_actions())
+        elif st.sensor_id:
+            st.sensor_id = None
+            await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors())
+        elif st.device_key:
+            st.device_key = None
+            await update.message.reply_text("Selecciona el área de cultivo:", reply_markup=menus.kb_devices())
+        else:
+            await update.message.reply_text("Selecciona el área de cultivo:", reply_markup=menus.kb_devices())
+        return
+
     # 2) Selección de sensor (solo si ya hay equipo)
-    if st.device_key and text in {menus.BTN_TEMP, menus.BTN_HUM, menus.BTN_PRESION, menus.BTN_GAS}:
-        st.sensor_id = {menus.BTN_TEMP: "temp_ambiente", menus.BTN_HUM: "hum_ambiente", menus.BTN_PRESION: "presion_atm", menus.BTN_GAS: "resistencia_gas"}[text]
+    if st.device_key and text in {menus.BTN_TEMP, menus.BTN_HUM, menus.BTN_PRESION, menus.BTN_GAS, menus.BTN_HUM_SUELO}:
+        st.sensor_id = {menus.BTN_TEMP: "temp_ambiente", menus.BTN_HUM: "hum_ambiente", menus.BTN_PRESION: "presion_atm", menus.BTN_GAS: "resistencia_gas", menus.BTN_HUM_SUELO: "hum_suelo"}[text]
         st.mode = None
         await update.message.reply_text("Elige acción:", reply_markup=menus.kb_actions())
         return
@@ -138,16 +161,23 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 2.5) Acción: Cámara
     if st.device_key and text == menus.BTN_CAMARA:
         st.sensor_id = None
+        msg = await update.message.reply_text("Obteniendo imagen, por favor espera...")
         dev: DevCfg = context.application.bot_data["dev"]
-        ip_addr = dev.ip(st.device_key)
+        api = get_api(dev, st.device_key)
+        img_bytes = api.get_camera_capture()
         
-        msg = (
-            f"📷 Transmisión en Vivo\n\n"
-            f"Para ver el video en tiempo real de la cámara y los datos completos, haz clic en el siguiente enlace:\n"
-            f"👉 http://{ip_addr}/\n\n"
-            f"*(Asegúrate de estar conectado a la misma red WiFi)*"
+        caption = (
+            f"📸 Imagen en vivo del dispositivo\n\n"
+            f"Recuerda que debes estar conectado a la red **Primavera26** para ver el video completo en el navegador:\n"
+            f"👉 http://{dev.ip(st.device_key)}/"
         )
-        await update.message.reply_text(msg, reply_markup=menus.kb_sensors())
+        
+        if img_bytes:
+            await update.message.reply_photo(photo=img_bytes, caption=caption, reply_markup=menus.kb_sensors())
+            await msg.delete()
+        else:
+            await update.message.reply_text("⚠️ No se pudo obtener la imagen de la cámara.\n\n" + caption, reply_markup=menus.kb_sensors())
+            await msg.delete()
         return
 
     # 3) Acción: Ahora (solo si ya hay equipo y sensor)
@@ -161,9 +191,8 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         dev: DevCfg = context.application.bot_data["dev"]
         dev_label = dev.label(st.device_key)
-        ip_addr = dev.ip(st.device_key)
 
-        api = LocalESP32API(ip_addr)
+        api = get_api(dev, st.device_key)
         cfg: Cfg = context.application.bot_data["cfg"]
         norm: Norm = context.application.bot_data["norm"]
 
@@ -220,7 +249,11 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 4) Grafica
     if text == menus.BTN_PLOT:
-        await update.message.reply_text("⚠️ El código actual en el ESP32 no guarda historial, por lo que las gráficas no están disponibles en este momento.", reply_markup=menus.kb_actions())
+        if st.device_key == "huerto_1":
+            st.mode = "plot"
+            await update.message.reply_text("Elige rango:", reply_markup=menus.kb_ranges())
+        else:
+            await update.message.reply_text("⚠️ El ESP32 seleccionado no guarda historial, por lo que las gráficas no están disponibles.", reply_markup=menus.kb_actions())
         return
     
     # 5) Rangos de graficas
@@ -235,8 +268,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rng = menus.RANGE_MAP[text]
 
         dev: DevCfg = context.application.bot_data["dev"]
-        ip_addr = dev.ip(st.device_key)
-        api = LocalESP32API(ip_addr)
+        api = get_api(dev, st.device_key)
 
         start_dt, end_dt = parse_range(rng, TZ_NAME)
         rows = api.get_history_data(st.sensor_id, fmt_api(start_dt), fmt_api(end_dt))
@@ -315,7 +347,15 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 6) CSV
     if text == menus.BTN_CSV_ALL:
-        await update.message.reply_text("⚠️ El código actual en el ESP32 no guarda historial, por lo que las exportaciones CSV no están disponibles en este momento.", reply_markup=menus.kb_sensors())
+        if st.device_key == "huerto_1":
+            csv_path = os.getenv("CSV_HUERTO_PATH")
+            if csv_path and os.path.exists(csv_path):
+                with open(csv_path, 'rb') as f:
+                    await update.message.reply_document(document=f, filename="huerto_readings.csv", reply_markup=menus.kb_sensors())
+            else:
+                await update.message.reply_text("Error: Archivo CSV no encontrado en el servidor.", reply_markup=menus.kb_sensors())
+        else:
+            await update.message.reply_text("⚠️ El equipo seleccionado no cuenta con historial CSV.", reply_markup=menus.kb_sensors())
         return
 
 
@@ -356,8 +396,7 @@ async def cmd_ahora(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sid = context.args[0]
 
     dev: DevCfg = context.application.bot_data["dev"]
-    ip_addr = dev.ip("huerto_1") # Default a huerto 1
-    api = LocalESP32API(ip_addr)
+    api = get_api(dev, "huerto_1")
     cfg: Cfg = context.application.bot_data["cfg"]
     norm: Norm = context.application.bot_data["norm"]
 
@@ -424,11 +463,26 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "act:plot":
-        await q.answer("⚠️ Gráficas no disponibles con la versión actual del ESP32.", show_alert=True)
+        st_map = context.application.bot_data.setdefault("state", {})
+        st = st_map.get(q.message.chat_id) or UIState()
+        if st.device_key == "huerto_1":
+            await q.edit_message_text("Elige sensor para la gráfica:", reply_markup=kb_sensors(cfg, "plot"))
+        else:
+            await q.answer("⚠️ Gráficas no disponibles con la versión actual del ESP32.", show_alert=True)
         return
 
     if data == "act:csv":
-        await q.answer("⚠️ CSV no disponible con la versión actual del ESP32.", show_alert=True)
+        st_map = context.application.bot_data.setdefault("state", {})
+        st = st_map.get(q.message.chat_id) or UIState()
+        if st.device_key == "huerto_1":
+            csv_path = os.getenv("CSV_HUERTO_PATH")
+            if csv_path and os.path.exists(csv_path):
+                with open(csv_path, 'rb') as f:
+                    await q.message.reply_document(document=f, filename="huerto_readings.csv")
+            else:
+                await q.answer("Error: Archivo CSV no encontrado en el servidor.", show_alert=True)
+        else:
+            await q.answer("⚠️ CSV no disponible con la versión actual del ESP32.", show_alert=True)
         return
 
     # selección de sensor
@@ -439,8 +493,7 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
             dev: DevCfg = context.application.bot_data["dev"]
             st_map = context.application.bot_data.setdefault("state", {})
             st = st_map.get(q.message.chat_id) or UIState()
-            ip_addr = dev.ip(st.device_key) if st.device_key else "127.0.0.1"
-            api = LocalESP32API(ip_addr)
+            api = get_api(dev, st.device_key) if st.device_key else get_api(dev, "huerto_1")
             last = api.get_current_data(sid)
 
             label = cfg.label(sid)
@@ -470,8 +523,11 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # plot/csv requieren rango
         if action in ("plot", "csv"):
-            await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
-            return
+            st_map = context.application.bot_data.setdefault("state", {})
+            st = st_map.get(q.message.chat_id) or UIState()
+            if st.device_key != "huerto_1":
+                await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
+                return
             
         await q.edit_message_text("Elige rango:", reply_markup=kb_ranges(action, sid))
         return
@@ -481,7 +537,17 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _, action, sid, rng = data.split(":")
         
         if action in ("plot", "csv"):
-            await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
+            st_map = context.application.bot_data.setdefault("state", {})
+            st = st_map.get(q.message.chat_id) or UIState()
+            if st.device_key != "huerto_1":
+                await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
+                return
+            
+            # The execution logic for run:plot and run:csv is handled in on_text for now
+            # or we could implement it here, but since the user uses the keyboard buttons mostly,
+            # we just warn if it's not huerto_1. If it IS huerto_1, we'd need full plot generation here.
+            # To avoid duplicating plot logic, we route them to use the keyboard menu.
+            await q.edit_message_text("Por favor, usa los botones del menú inferior para generar gráficas o descargar CSV.", reply_markup=kb_main())
             return
 
     # fallback

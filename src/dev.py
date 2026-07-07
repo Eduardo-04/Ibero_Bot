@@ -25,12 +25,16 @@ class DevCfg:
         d = self.devices.get(key, {}) or {}
         return d.get("label", key)
 
+    def config(self, key: str) -> dict:
+        """Retorna el diccionario de configuración completo de un equipo."""
+        return self.devices.get(key, {})
+
     def ip(self, key: str) -> str:
         """
         Obtiene la dirección IP de un equipo en la red local.
         """
         d = self.devices.get(key, {}) or {}
         ip_addr = d.get("ip_address")
-        if not ip_addr:
-            raise RuntimeError(f"Falta ip_address para device '{key}' en devices.yaml")
-        return ip_addr
+        if not ip_addr and not d.get("cloud_url"):
+            raise RuntimeError(f"Falta ip_address o cloud_url para device '{key}' en devices.yaml")
+        return ip_addr or ""

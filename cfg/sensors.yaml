@@ -15,3 +15,7 @@ sensors:
     alias: "Gas"
     label: "Resistencia Gas"
     unit: "Ω"
+  - id: "hum_suelo"
+    alias: "Humedad Suelo"
+    label: "Humedad del Suelo"
+    unit: "%"

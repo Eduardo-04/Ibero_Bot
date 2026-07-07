@@ -58,3 +58,18 @@ limits:
         max: 500000
         emoji: "🟢"
         lvl: "good"
+
+  hum_suelo:
+    bands:
+      - name: "Suelo Seco"
+        max: 35
+        emoji: "🔴"
+        lvl: "bad"
+      - name: "Humedad Media"
+        max: 70
+        emoji: "🟡"
+        lvl: "fair"
+      - name: "Humedad Alta"
+        max: 100
+        emoji: "🟢"
+        lvl: "good"
