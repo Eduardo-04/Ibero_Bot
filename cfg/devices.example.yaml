@@ -1,7 +1,11 @@
 devices:
   huerto_1:
-    label: "Huerto Principal"
+    label: "🌱 Invernadero"
     env_token: "SM_TOKEN_HUERTO_1"
+    cloud_url: "http://<tu-ip-aws>/huerto/ultimo"
+    ip_address: "192.168.x.x"
   huerto_2:
-    label: "Semillero"
+    label: "🪴 Cama 1"
     env_token: "SM_TOKEN_HUERTO_2"
+    cloud_url: "http://<tu-ip-aws>/huerto/ultimo?device=cama_cultivo_01"
+    ip_address: "192.168.x.y"

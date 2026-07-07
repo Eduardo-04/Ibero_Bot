@@ -83,9 +83,10 @@ class CloudAPI:
     """
     Clase para interactuar con el endpoint de AWS en la nube.
     """
-    def __init__(self, url: str, timeout: int = 10):
+    def __init__(self, url: str, timeout: int = 10, csv_env_var: str = "CSV_HUERTO_PATH"):
         self.url = url
         self.timeout = timeout
+        self.csv_env_var = csv_env_var
         self.s = requests.Session()
         self.s.headers.update({
             "User-Agent": "BotIbero Cloud",
@@ -107,6 +108,8 @@ class CloudAPI:
                 val = data.get("pressure")
             elif sensor_id == "resistencia_gas":
                 val = data.get("gas")
+            elif sensor_id == "hum_suelo":
+                val = data.get("soil_percent")
                 
             raw_ts = data.get("timestamp")
             if raw_ts:
@@ -136,7 +139,7 @@ class CloudAPI:
         import pandas as pd
         from pathlib import Path
         
-        csv_path = os.getenv("CSV_HUERTO_PATH")
+        csv_path = os.getenv(self.csv_env_var)
         if not csv_path or not Path(csv_path).exists():
             return []
             
@@ -146,7 +149,8 @@ class CloudAPI:
                 "temp_ambiente": "temperature",
                 "hum_ambiente": "humidity",
                 "presion_atm": "pressure",
-                "resistencia_gas": "gas"
+                "resistencia_gas": "gas",
+                "hum_suelo": "soil_percent"
             }
             if sensor_id not in col_map: 
                 return []
@@ -183,7 +187,10 @@ def get_api(dev_cfg, device_key: str):
     d = dev_cfg.config(device_key)
     if "cloud_url" in d:
         # Usa la variable de entorno si existe (para evitar NAT hairpin en AWS), si no usa la de devices.yaml
-        url = os.getenv("URL_API_ULTIMO") or d["cloud_url"]
-        return CloudAPI(url)
+        env_url_var = "URL_API_CAMAS" if device_key == "huerto_2" else "URL_API_ULTIMO"
+        url = os.getenv(env_url_var) or d["cloud_url"]
+        
+        env_csv_var = "CSV_CAMAS_PATH" if device_key == "huerto_2" else "CSV_HUERTO_PATH"
+        return CloudAPI(url, csv_env_var=env_csv_var)
     else:
         return LocalESP32API(d.get("ip_address"))

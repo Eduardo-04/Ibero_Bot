@@ -249,11 +249,17 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 4) Grafica
     if text == menus.BTN_PLOT:
-        if st.device_key == "huerto_1":
+        if st.device_key in ["huerto_1", "huerto_2"]:
             st.mode = "plot"
-            await update.message.reply_text("Elige rango:", reply_markup=menus.kb_ranges())
+            await update.message.reply_text(
+                "¿De qué rango de tiempo quieres la gráfica?",
+                reply_markup=menus.kb_ranges()
+            )
         else:
-            await update.message.reply_text("⚠️ El ESP32 seleccionado no guarda historial, por lo que las gráficas no están disponibles.", reply_markup=menus.kb_actions())
+            await update.message.reply_text(
+                "⚠️ El código actual en el ESP32 no guarda historial, por lo que las gráficas no están disponibles en este momento.",
+                reply_markup=menus.kb_actions()
+            )
         return
     
     # 5) Rangos de graficas
@@ -347,15 +353,22 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 6) CSV
     if text == menus.BTN_CSV_ALL:
-        if st.device_key == "huerto_1":
-            csv_path = os.getenv("CSV_HUERTO_PATH")
+        if st.device_key in ["huerto_1", "huerto_2"]:
+            env_var = "CSV_HUERTO_PATH" if st.device_key == "huerto_1" else "CSV_CAMAS_PATH"
+            csv_path = os.getenv(env_var)
             if csv_path and os.path.exists(csv_path):
                 with open(csv_path, 'rb') as f:
-                    await update.message.reply_document(document=f, filename="huerto_readings.csv", reply_markup=menus.kb_sensors())
+                    await update.message.reply_document(
+                        document=f,
+                        filename=os.path.basename(csv_path)
+                    )
             else:
-                await update.message.reply_text("Error: Archivo CSV no encontrado en el servidor.", reply_markup=menus.kb_sensors())
+                await update.message.reply_text("Error: Archivo CSV no encontrado en el servidor.", reply_markup=menus.kb_sensors(st.device_key))
         else:
-            await update.message.reply_text("⚠️ El equipo seleccionado no cuenta con historial CSV.", reply_markup=menus.kb_sensors())
+            await update.message.reply_text(
+                "⚠️ El código actual en el ESP32 no guarda historial, por lo que las exportaciones CSV no están disponibles en este momento.",
+                reply_markup=menus.kb_sensors(st.device_key)
+            )
         return
 
 
@@ -467,7 +480,7 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "act:plot":
         st_map = context.application.bot_data.setdefault("state", {})
         st = st_map.get(q.message.chat_id) or UIState()
-        if st.device_key == "huerto_1":
+        if st.device_key in ["huerto_1", "huerto_2"]:
             await q.edit_message_text("Elige sensor para la gráfica:", reply_markup=kb_sensors(cfg, "plot", st.device_key))
         else:
             await q.answer("⚠️ Gráficas no disponibles con la versión actual del ESP32.", show_alert=True)
@@ -476,11 +489,12 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "act:csv":
         st_map = context.application.bot_data.setdefault("state", {})
         st = st_map.get(q.message.chat_id) or UIState()
-        if st.device_key == "huerto_1":
-            csv_path = os.getenv("CSV_HUERTO_PATH")
+        if st.device_key in ["huerto_1", "huerto_2"]:
+            env_var = "CSV_HUERTO_PATH" if st.device_key == "huerto_1" else "CSV_CAMAS_PATH"
+            csv_path = os.getenv(env_var)
             if csv_path and os.path.exists(csv_path):
                 with open(csv_path, 'rb') as f:
-                    await q.message.reply_document(document=f, filename="huerto_readings.csv")
+                    await q.message.reply_document(document=f, filename=os.path.basename(csv_path))
             else:
                 await q.answer("Error: Archivo CSV no encontrado en el servidor.", show_alert=True)
         else:
@@ -527,7 +541,7 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action in ("plot", "csv"):
             st_map = context.application.bot_data.setdefault("state", {})
             st = st_map.get(q.message.chat_id) or UIState()
-            if st.device_key != "huerto_1":
+            if st.device_key not in ["huerto_1", "huerto_2"]:
                 await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
                 return
             
@@ -541,15 +555,15 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action in ("plot", "csv"):
             st_map = context.application.bot_data.setdefault("state", {})
             st = st_map.get(q.message.chat_id) or UIState()
-            if st.device_key != "huerto_1":
+            if st.device_key not in ["huerto_1", "huerto_2"]:
                 await q.answer("⚠️ Función no disponible con la versión actual del ESP32.", show_alert=True)
                 return
             
             # The execution logic for run:plot and run:csv is handled in on_text for now
             # or we could implement it here, but since the user uses the keyboard buttons mostly,
-            # we just warn if it's not huerto_1. If it IS huerto_1, we'd need full plot generation here.
+            # we just warn if it's not supported. 
             # To avoid duplicating plot logic, we route them to use the keyboard menu.
-            await q.edit_message_text("Por favor, usa los botones del menú inferior para generar gráficas o descargar CSV.", reply_markup=kb_main())
+            await q.edit_message_text("Por favor, usa los botones del menú inferior para generar gráficas o descargar CSV.", reply_markup=menus.kb_main())
             return
 
     # fallback
