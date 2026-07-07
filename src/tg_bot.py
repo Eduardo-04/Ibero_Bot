@@ -184,7 +184,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 3) Acción: Ahora (solo si ya hay equipo y sensor)
-    if text in {menus.BTN_NOW, menus.BTN_PLOT}:
+    if text == menus.BTN_NOW:
         if not st.device_key:
             await update.message.reply_text("Primero elige el área de cultivo.", reply_markup=menus.kb_devices())
             return
