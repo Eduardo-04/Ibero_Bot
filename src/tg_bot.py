@@ -23,7 +23,7 @@ from dateutil.relativedelta import relativedelta
 from api import LocalESP32API, get_api
 from cfg import Cfg
 from norm import Norm
-from dt import parse_range, fmt_api
+from dt import parse_range, fmt_api, now
 from dev import DevCfg
 from plot import plot_png
 from csvx import build_full_csv
@@ -289,7 +289,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         unit_in_for_norm = None
         label_avg = "Promedio 1h"
 
-        end_norm = datetime.now()
+        end_norm = now(TZ_NAME)
         start_norm = end_norm - win
 
         rows_norm = api.get_history_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
@@ -312,7 +312,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         unit_in_for_norm = None
         label_avg = "Promedio 1h"
 
-        end_norm = datetime.now()
+        end_norm = now(TZ_NAME)
         start_norm = end_norm - win
 
         rows_norm = api.get_history_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
