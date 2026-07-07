@@ -112,6 +112,8 @@ class CloudAPI:
             if raw_ts:
                 try:
                     dt = datetime.datetime.fromisoformat(raw_ts)
+                    # Ajuste de UTC a hora local de México (-6 horas)
+                    dt = dt - datetime.timedelta(hours=6)
                     ts = dt.strftime("%Y-%m-%d %H:%M:%S")
                 except:
                     ts = raw_ts
@@ -151,6 +153,8 @@ class CloudAPI:
                 
             col = col_map[sensor_id]
             df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+            # Ajuste de UTC a hora local de México (-6 horas)
+            df['timestamp'] = df['timestamp'] - pd.Timedelta(hours=6)
             df = df.dropna(subset=['timestamp', col])
             
             if dt_start:
