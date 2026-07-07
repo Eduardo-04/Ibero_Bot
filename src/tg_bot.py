@@ -119,13 +119,13 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == menus.BTN_DEVICE_1:
         st.device_key = "huerto_1"
         st.sensor_id = None
-        await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors())
+        await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors(st.device_key))
         return
 
     if text == menus.BTN_DEVICE_2:
         st.device_key = "huerto_2"
         st.sensor_id = None
-        await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors())
+        await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors(st.device_key))
         return
 
     # Home (regresa a equipos)
@@ -143,7 +143,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Elige acción:", reply_markup=menus.kb_actions())
         elif st.sensor_id:
             st.sensor_id = None
-            await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors())
+            await update.message.reply_text("Elige sensor:", reply_markup=menus.kb_sensors(st.device_key))
         elif st.device_key:
             st.device_key = None
             await update.message.reply_text("Selecciona el área de cultivo:", reply_markup=menus.kb_devices())
@@ -173,10 +173,10 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         if img_bytes:
-            await update.message.reply_photo(photo=img_bytes, caption=caption, reply_markup=menus.kb_sensors())
+            await update.message.reply_photo(photo=img_bytes, caption=caption, reply_markup=menus.kb_sensors(st.device_key))
             await msg.delete()
         else:
-            await update.message.reply_text("⚠️ No se pudo obtener la imagen de la cámara.\n\n" + caption, reply_markup=menus.kb_sensors())
+            await update.message.reply_text("⚠️ No se pudo obtener la imagen de la cámara.\n\n" + caption, reply_markup=menus.kb_sensors(st.device_key))
             await msg.delete()
         return
 
@@ -459,14 +459,16 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "act:now":
-        await q.edit_message_text("Elige sensor:", reply_markup=kb_sensors(cfg, "now"))
+        st_map = context.application.bot_data.setdefault("state", {})
+        st = st_map.get(q.message.chat_id) or UIState()
+        await q.edit_message_text("Elige sensor:", reply_markup=kb_sensors(cfg, "now", st.device_key))
         return
 
     if data == "act:plot":
         st_map = context.application.bot_data.setdefault("state", {})
         st = st_map.get(q.message.chat_id) or UIState()
         if st.device_key == "huerto_1":
-            await q.edit_message_text("Elige sensor para la gráfica:", reply_markup=kb_sensors(cfg, "plot"))
+            await q.edit_message_text("Elige sensor para la gráfica:", reply_markup=kb_sensors(cfg, "plot", st.device_key))
         else:
             await q.answer("⚠️ Gráficas no disponibles con la versión actual del ESP32.", show_alert=True)
         return

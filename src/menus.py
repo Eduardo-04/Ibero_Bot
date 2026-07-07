@@ -25,12 +25,16 @@ def kb_devices():
         one_time_keyboard=False
     )
 
-def kb_sensors():
+def kb_sensors(device_key: str = None):
     """Genera el teclado para elegir el sensor a consultar."""
+    row2 = [BTN_PRESION]
+    if device_key != "huerto_1":
+        row2.insert(0, BTN_HUM_SUELO)
+        
     return ReplyKeyboardMarkup(
         [
             [BTN_TEMP, BTN_HUM],
-            [BTN_HUM_SUELO, BTN_PRESION],
+            row2,
             [BTN_GAS, BTN_CAMARA],
             [BTN_CSV_ALL],
             [BTN_BACK, BTN_HOME]

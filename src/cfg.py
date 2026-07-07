@@ -23,6 +23,7 @@ class Cfg:
         self.sensors = {}
         self.labels = {}
         self.units = {}
+        self.exclusions = {}
         # Mapea los IDs a alias, labels y units para acceso rápido
         for s in self.sensors_list:
             sid = str(s.get("id"))
@@ -30,6 +31,11 @@ class Cfg:
             self.sensors[sid] = alias
             self.labels[alias] = s.get("label", alias)
             self.units[alias] = s.get("unit", "")
+            self.exclusions[sid] = s.get("exclude", [])
+
+    def is_excluded(self, sensor_id: str, device_key: str) -> bool:
+        """Verifica si un sensor debe ocultarse para un dispositivo específico."""
+        return device_key in self.exclusions.get(str(sensor_id), [])
 
     def alias(self, sensor_id: str) -> str:
         """Obtiene el alias interno de un sensor dado su ID."""
