@@ -231,7 +231,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 continue
         avg_norm = (sum(vals) / len(vals)) if vals else None
 
-        sem = norm.check(alias, avg_norm, unit_in=unit_in_for_norm)
+        sem = norm.check(st.sensor_id, avg_norm, unit_in=unit_in_for_norm)
 
         # 3) Mensaje
         lines = []
@@ -295,7 +295,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows_norm = api.get_history_data(st.sensor_id, fmt_api(start_norm), fmt_api(end_norm))
         avg_norm = avg_from_rows(rows_norm)
 
-        sem = norm.check(alias, avg_norm, unit_in=unit_in_for_norm)
+        sem = norm.check(st.sensor_id, avg_norm, unit_in=unit_in_for_norm)
 
         label = cfg.label(st.sensor_id)
         unit = cfg.unit(st.sensor_id)
@@ -328,7 +328,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 continue
         avg_norm = (sum(vals) / len(vals)) if vals else None
 
-        sem = norm.check(alias, avg_norm, unit_in=unit_in_for_norm)
+        sem = norm.check(st.sensor_id, avg_norm, unit_in=unit_in_for_norm)
 
         # Mensaje de resumen (min/max)
         if stats["min"] is not None:
@@ -434,7 +434,7 @@ async def cmd_ahora(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         val = None
 
-    s = norm.check(alias, val)
+    s = norm.check(sid, val)
 
     text = (
         f"{s.emoji} {label}\n"
@@ -530,7 +530,7 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 val = None
 
-            s = norm.check(alias, val)
+            s = norm.check(sid, val)
             text = (
                 f"{s.emoji} {label}\n"
                 f"Valor: {raw} {unit}".strip() + "\n"
