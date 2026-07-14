@@ -201,7 +201,6 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         label = cfg.label(st.sensor_id)
         unit = cfg.unit(st.sensor_id)
-        alias = cfg.alias(st.sensor_id)
 
         # 1) Último valor (últimos 10 minutos)
         last = api.get_current_data(st.sensor_id)
@@ -283,7 +282,6 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows = api.get_history_data(st.sensor_id, fmt_api(start_dt), fmt_api(end_dt))
         
         # === Promedio normativo para semáforo ===
-        alias = cfg.alias(st.sensor_id)
 
         win = relativedelta(hours=1)
         unit_in_for_norm = None
@@ -306,7 +304,6 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_photo(photo=png, caption=title, reply_markup=menus.kb_actions())
 
         # === Promedio normativo para estado actual ===
-        alias = cfg.alias(st.sensor_id)
 
         win = relativedelta(hours=1)
         unit_in_for_norm = None
@@ -387,17 +384,13 @@ async def cmd_sensores(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message: return
     cfg: Cfg = context.application.bot_data["cfg"]
 
-    # cfg.sensors puede traer keys como int o str; normalizamos
-    items = []
-    for k, alias in cfg.sensors.items():
-        sid = k
-        items.append((sid, alias))
-
-    items.sort(key=lambda x: x[0])
+    # cfg.sensors_ids contiene la lista de ids
+    items = list(cfg.sensors_ids)
+    items.sort()
 
     lines = ["Sensores disponibles:"]
-    for sid, alias in items:
-        lines.append(f"- {sid}: {cfg.labels.get(alias, alias)}")
+    for sid in items:
+        lines.append(f"- {sid}: {cfg.label(sid)}")
 
     lines.append("\nEjemplo: /ahora 9")
     await update.message.reply_text("\n".join(lines))
@@ -420,7 +413,6 @@ async def cmd_ahora(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     label = cfg.label(sid)
     unit = cfg.unit(sid)
-    alias = cfg.alias(sid)
 
     if not last:
         await update.message.reply_text(f"{label}: sin datos en los últimos 10 minutos.")
@@ -463,14 +455,11 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "act:sensors":
         # lista simple
-        items = []
-        for k, alias in cfg.sensors.items():
-            sid = k
-            items.append((sid, alias))
-        items.sort(key=lambda x: x[0])
+        items = list(cfg.sensors_ids)
+        items.sort()
         lines = ["Sensores disponibles:"]
-        for sid, alias in items:
-            lines.append(f"- {sid}: {cfg.labels.get(alias, alias)}")
+        for sid in items:
+            lines.append(f"- {sid}: {cfg.label(sid)}")
         await q.edit_message_text("\n".join(lines), reply_markup=kb_main())
         return
 
@@ -517,7 +506,6 @@ async def on_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             label = cfg.label(sid)
             unit = cfg.unit(sid)
-            alias = cfg.alias(sid)
 
             if not last:
                 await q.edit_message_text(f"{label}: sin datos en los últimos 10 minutos.", reply_markup=kb_main())

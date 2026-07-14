@@ -20,33 +20,26 @@ class Cfg:
         # raw["sensors"] is now a list of dicts: [{'id': 'temp_ambiente', 'alias': 'Temperatura', 'label': 'Temperatura Ambiental', 'unit': '°C'}, ...]
         self.sensors_list = self.raw.get("sensors", [])
         
-        self.sensors = {}
+        self.sensors_ids = []
         self.labels = {}
         self.units = {}
         self.exclusions = {}
-        # Mapea los IDs a alias, labels y units para acceso rápido
+        # Mapea los IDs a labels y units para acceso rápido
         for s in self.sensors_list:
             sid = str(s.get("id"))
-            alias = s.get("alias", sid)
-            self.sensors[sid] = alias
-            self.labels[alias] = s.get("label", alias)
-            self.units[alias] = s.get("unit", "")
+            self.sensors_ids.append(sid)
+            self.labels[sid] = s.get("label", sid)
+            self.units[sid] = s.get("unit", "")
             self.exclusions[sid] = s.get("exclude", [])
 
     def is_excluded(self, sensor_id: str, device_key: str) -> bool:
         """Verifica si un sensor debe ocultarse para un dispositivo específico."""
         return device_key in self.exclusions.get(str(sensor_id), [])
 
-    def alias(self, sensor_id: str) -> str:
-        """Obtiene el alias interno de un sensor dado su ID."""
-        return self.sensors.get(str(sensor_id), str(sensor_id))
-
     def label(self, sensor_id: str) -> str:
         """Obtiene el nombre legible (label) de un sensor dado su ID."""
-        a = self.alias(sensor_id)
-        return self.labels.get(a, f"Sensor {sensor_id}")
+        return self.labels.get(str(sensor_id), f"Sensor {sensor_id}")
 
     def unit(self, sensor_id: str) -> str:
         """Obtiene la unidad de medida (e.g., °C, %) de un sensor dado su ID."""
-        a = self.alias(sensor_id)
-        return self.units.get(a, "")
+        return self.units.get(str(sensor_id), "")

@@ -25,24 +25,24 @@ class Norm:
             self.raw = yaml.safe_load(f) or {}
         self.limits = self.raw.get("limits", {}) or {}
 
-    def _bands(self, alias: str):
+    def _bands(self, sensor_id: str):
         """Retorna las bandas (niveles de semáforo) configuradas para un sensor específico."""
-        return (self.limits.get(alias) or {}).get("bands") or []
+        return (self.limits.get(sensor_id) or {}).get("bands") or []
 
-    def _target_unit(self, alias: str) -> str:
+    def _target_unit(self, sensor_id: str) -> str:
         """Obtiene la unidad de medida en la que está expresada la norma para un sensor."""
-        return ((self.limits.get(alias) or {}).get("unit") or "").strip().lower()
+        return ((self.limits.get(sensor_id) or {}).get("unit") or "").strip().lower()
 
-    def _convert(self, alias: str, value: float, unit_in: Optional[str]) -> float:
+    def _convert(self, sensor_id: str, value: float, unit_in: Optional[str]) -> float:
         """
         Convierte value a la unidad esperada por la norma (si aplica).
         Hoy solo necesitamos NO2: ppb -> ppm.
         """
         unit_in = (unit_in or "").strip().lower()
-        unit_out = self._target_unit(alias)
+        unit_out = self._target_unit(sensor_id)
 
         # NO2 norma en ppm; sensor suele venir en ppb
-        if alias == "no2" and unit_out == "ppm":
+        if sensor_id == "no2" and unit_out == "ppm":
             if unit_in == "ppb":
                 return value / 1000.0
             # si ya viene en ppm o no sabemos, lo dejamos igual
@@ -51,13 +51,13 @@ class Norm:
         # PM suelen venir en ug/m3, no convertimos aquí
         return value
 
-    def check(self, alias: str, value: Optional[float], unit_in: Optional[str] = None) -> Semaforo:
+    def check(self, sensor_id: str, value: Optional[float], unit_in: Optional[str] = None) -> Semaforo:
         """
         Evalúa el valor de una medición contra las bandas normativas configuradas y
         retorna un objeto Semaforo con el estado resultante.
         
         Args:
-            alias: El alias del sensor (ej. 'temp_ambiente').
+            sensor_id: El ID del sensor (ej. 'temp_ambiente').
             value: El valor de la medición (o promedio).
             unit_in: La unidad de entrada de la medición.
         
@@ -67,7 +67,7 @@ class Norm:
         if value is None:
             return Semaforo("na", "⚪", "Sin dato", "Sin dato.")
 
-        bands = self._bands(alias)
+        bands = self._bands(sensor_id)
         if not bands:
             return Semaforo("na", "⚪", "Sin norma", "Sin norma configurada.")
 
@@ -76,7 +76,7 @@ class Norm:
         except Exception:
             return Semaforo("na", "⚪", "Sin dato", "Dato inválido.")
 
-        v = self._convert(alias, v, unit_in)
+        v = self._convert(sensor_id, v, unit_in)
 
         # Recorre bandas en orden; max==null significa “sin límite superior”
         for b in bands:
